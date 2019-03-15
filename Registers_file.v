@@ -18,8 +18,8 @@ module Registers_file (
 	
 	assign reg1 = regs[src1];
 	assign reg2 = regs[src2];
-	// always @(negedge clk)begin
-	// 	if (Write_EN==0)
-	// 		regs [dest] = Write_Val; 
-	// end
+	always @(negedge clk)begin
+		if (Write_EN==1 && dest != 5'b0)
+			regs [dest] = Write_Val; 
+	end
 endmodule

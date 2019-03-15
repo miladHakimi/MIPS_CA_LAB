@@ -18,8 +18,8 @@ module ID_Stage(
 	);
 	wire [31:0] reg2, sign_output;
 	wire is_immediate;
-
-	Sign_Extend SE(.sign_input(Instruction[11:0]), .sign_output(sign_output));
+	
+	Sign_Extend SE(.sign_input(Instruction[15:0]), .sign_output(sign_output));
 
 	Registers_file Reg_File(.clk(clk), .rst(rst), .src1(Instruction[25:21]), .src2(Instruction[20:16]),
 					 		.dest(WB_Dest), .Write_Val(WB_Data), .Write_EN(WB_Write_Enable),
