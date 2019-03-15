@@ -25,7 +25,7 @@ module ID_Stage_reg (
 		output reg WB_EN
 	);
 	always@(posedge clk, posedge rst) begin
-		if(rst) begin
+		if(rst || (clk && Flush)) begin
 			Dest = 5'b0;
 			Reg2 = 32'b0;
 			Val2 = 32'b0;
