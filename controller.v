@@ -21,9 +21,9 @@ always @(opcode) begin
 		SUBI: {EXE_CMD, WB_EN, is_immediate} = {4'b0010, 1'b1, 1'b1};
 		LD: {EXE_CMD, WB_EN, MEM_R_EN, is_immediate} = {4'b0000, 3'b111};
 		ST: {MEM_W_EN, is_immediate} = {2'b11};
-		BEZ: {is_immediate, br_type} = {1'b0, 2'b01};
-		BNE: {is_immediate, br_type} = {1'b0, 2'b10};
-		JMP: {is_immediate, br_type} = {1'b0, 2'b11};
+		BEZ: {is_immediate, br_type} = {1'b1, 2'b01};
+		BNE: {is_immediate, br_type} = {1'b1, 2'b10};
+		JMP: {is_immediate, br_type} = {1'b1, 2'b11};
 	endcase
 end
 
