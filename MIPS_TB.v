@@ -252,7 +252,7 @@ MIPS mips(
 		GPIO_0,							//	GPIO Connection 0
 		GPIO_1							//	GPIO Connection 1
 	);
-	initial repeat(500) 
+	initial repeat(1000) 
 	begin 
 		#50 
 		CLOCK_50 = ~CLOCK_50;

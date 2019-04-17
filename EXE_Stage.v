@@ -14,6 +14,6 @@ module EXE_Stage(
 	
 	ALU EXE_ALU(val1, val2, EXE_CMD, ALU_result);
 	EXE_Condition_Check EXE_Cond_Check (Br_type, val1, val_src2, Br_taken);
-	assign Br_Addr = PC + val2;
+	assign Br_Addr = PC + val2*4;
 
 endmodule

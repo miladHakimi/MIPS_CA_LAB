@@ -1,6 +1,7 @@
 module ID_Stage(
 		input clk,
 		input rst,
+		input freeze,
 		input[31:0] Instruction,
 		input WB_Write_Enable,
 		input[4:0] WB_Dest,
@@ -14,10 +15,16 @@ module ID_Stage(
 		output[1:0] Branch_Type,
 		output MEM_R_EN,
 		output MEM_W_EN,
-		output WB_EN
+		output WB_EN,
+		output is_single_src,
+		output is_BNE
 	);
 	wire [31:0] reg2, sign_output;
 	wire is_immediate;
+
+	wire MEM_R_EN2, MEM_W_EN2, WB_EN2;
+	wire [1:0] Branch_Type2;
+	wire [3:0] EXE_CMD2;
 	
 	Sign_Extend SE(.sign_input(Instruction[15:0]), .sign_output(sign_output));
 
@@ -26,8 +33,16 @@ module ID_Stage(
 					 		.reg1(Val1), .reg2(reg2));
 
 	assign Val2 = is_immediate? sign_output: reg2;
-	controller CU(.opcode(Instruction[31:26]), .is_immediate(is_immediate), .MEM_W_EN(MEM_W_EN), .MEM_R_EN(MEM_R_EN),
-					.WB_EN(WB_EN), .EXE_CMD(EXE_CMD), .br_type(Branch_Type));
+	controller CU(.opcode(Instruction[31:26]), .is_immediate(is_immediate), .MEM_W_EN(MEM_W_EN2), .MEM_R_EN(MEM_R_EN2),
+					.WB_EN(WB_EN2), .EXE_CMD(EXE_CMD2), .br_type(Branch_Type2), .is_single_src(is_single_src), .is_BNE(is_BNE));
+
+	//**************MUX for Hazard Detection
+	assign EXE_CMD = freeze ? 4'b0 : EXE_CMD2;
+	assign Branch_Type = freeze ? 2'b0 : Branch_Type2;
+	assign MEM_R_EN = freeze ? 1'b0 : MEM_R_EN2;
+	assign MEM_W_EN = freeze ? 1'b0 : MEM_W_EN2;
+	assign WB_EN = freeze ? 1'b0 : WB_EN2;
+	//*************End of MUX
 	assign Dest = is_immediate ? Instruction[20:16] : Instruction[15:11];
 	assign Reg2 = reg2;
 
