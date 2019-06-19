@@ -130,7 +130,7 @@ module MIPS
 		//SD_CLK,							//	SD Card Clock
 		////////////////////	USB JTAG link	////////////////////
 		TDI,  							// CPLD -> FPGA (data in)
-		TCK,  							// CPLD -> FPGA (CLOCK_50)
+		TCK,  							// CPLD -> FPGA (clk)
 		TCS,  							// CPLD -> FPGA (CS)
 	   TDO,  							// FPGA -> CPLD (data out)
 		////////////////////	I2C		////////////////////////////
@@ -264,7 +264,7 @@ input		 	   PS2_DAT;				//	PS2 Data
 input			   PS2_CLK;				//	PS2 Clock
 ////////////////////	USB JTAG link	////////////////////////////
 input  			TDI;					// CPLD -> FPGA (data in)
-input  			TCK;					// CPLD -> FPGA (CLOCK_50)
+input  			TCK;					// CPLD -> FPGA (clk)
 input  			TCS;					// CPLD -> FPGA (CS)
 output 			TDO;					// FPGA -> CPLD (data out)
 ////////////////////////	VGA			////////////////////////////
@@ -312,8 +312,8 @@ assign clk = CLOCK_50;
 wire [31:0] IF_reg_PC_out, EXE_STAGE_BR_ADDR, IF_reg_Inst_out;
 
 assign flush = BR_TAKEN;
-IF_Stage ifs(.clk(CLOCK_50), .rst(SW[0]), .freeze(HD_Hazard_Detection), .br_taken(BR_TAKEN), .br_addr(EXE_STAGE_BR_ADDR), .PC(PC), .instruction(Instruction));
-IF_Stage_reg ifsr(.clk(CLOCK_50), .rst(SW[0]), .freeze(HD_Hazard_Detection), .flush(flush), .PC_in(PC), .instruction_in(Instruction), .PC(IF_reg_PC_out), .instruction(IF_reg_Inst_out));
+IF_Stage ifs(.clk(clk), .rst(rst), .freeze(general_freeze), .br_taken(BR_TAKEN), .br_addr(EXE_STAGE_BR_ADDR), .PC(PC), .instruction(Instruction));
+IF_Stage_reg ifsr(.clk(clk), .rst(rst), .freeze(general_freeze), .flush(flush), .PC_in(PC), .instruction_in(Instruction), .PC(IF_reg_PC_out), .instruction(IF_reg_Inst_out));
 Bin_to_7Seg ifseg(PC[3:0], HEX0);
 assign LEDG[0] = clk;
 
@@ -329,29 +329,43 @@ wire [4:0] ID_WB_DST, ID_Dest, ID_DST_OUT;
 wire [3:0] ID_EXE_CMD, exe_cmd ;
 wire [1:0] ID_Branch_type, ID_BR_out;
 wire [4:0] MEM_Reg_dest;
-wire ID_is_single_src, ID_is_BNE;
+wire ID_is_single_src, ID_is_BNE, MEM_stage_ready;
+//src1 and src2
+wire [4:0] ID_SRC1,ID_SRC2,ID_REG_SRC1,ID_REG_SRC2;
 
-ID_Stage ids(.clk(CLOCK_50), .rst(SW[0]), .freeze(HD_Hazard_Detection), .Instruction(IF_reg_Inst_out), .WB_Write_Enable(MEM_WB_EN), .WB_Dest(MEM_Reg_dest), .WB_Data(WB_stage_W_value),
+ID_Stage ids(.clk(clk), .rst(rst), .freeze(general_freeze), .Instruction(IF_reg_Inst_out), .WB_Write_Enable(MEM_WB_EN), .WB_Dest(MEM_Reg_dest), .WB_Data(WB_stage_W_value),
 				.Dest(ID_Dest), .Reg2(ID_REG2), .Val1(ID_Val1), .Val2(ID_val2), .EXE_CMD(ID_EXE_CMD), 
-				.Branch_Type(ID_Branch_type), .MEM_R_EN(ID_MEM_R_EN), .MEM_W_EN(ID_stage_MEM_W_EN), .WB_EN(ID_WB_EN), .is_single_src(ID_is_single_src), .is_BNE(ID_is_BNE));
+				.Branch_Type(ID_Branch_type), .MEM_R_EN(ID_MEM_R_EN), .MEM_W_EN(ID_stage_MEM_W_EN), 
+				.WB_EN(ID_WB_EN),.src1(ID_SRC1),.src2(ID_SRC2), .is_single_src(ID_is_single_src), .is_BNE(ID_is_BNE));
 
-ID_Stage_reg idsr(.clk(CLOCK_50), .rst(SW[0]), .Flush(flush), .Dest_in(ID_Dest), .Reg2_in(ID_REG2), .Val1_in(ID_Val1), .Val2_in(ID_val2),
+ID_Stage_reg idsr(.clk(clk), .rst(rst), .Flush(flush), .freeze(~MEM_stage_ready), .Dest_in(ID_Dest), .Reg2_in(ID_REG2), .Val1_in(ID_Val1), .Val2_in(ID_val2),
 					.PC_in(IF_reg_PC_out), .br_type_in(ID_Branch_type), .EXE_CMD_in(ID_EXE_CMD), .MEM_R_EN_in(ID_MEM_R_EN),
-					.MEM_W_EN_in(ID_stage_MEM_W_EN), .WB_EN_in(ID_WB_EN), .Dest(ID_DST_OUT), .Reg2(ID_REG2_out), .Val2(ID_Val2_out),
-					.Val1(ID_val1_out), .PC_out(ID_reg_PC_out), .br_type_out(ID_BR_out), .EXE_CMD(exe_cmd), .MEM_R_EN(ID_reg_MEM_R_EN),
-					.MEM_W_EN(ID_MEM_W_EN), .WB_EN(ID_reg_WB_EN));
+					.MEM_W_EN_in(ID_stage_MEM_W_EN), .WB_EN_in(ID_WB_EN),.src1_in(ID_SRC1),.src2_in(ID_SRC2),
+					.Dest(ID_DST_OUT), .Reg2(ID_REG2_out), .Val2(ID_Val2_out),
+					.Val1(ID_val1_out), .PC_out(ID_reg_PC_out), .br_type_out(ID_BR_out), .EXE_CMD(exe_cmd), 
+					.MEM_R_EN(ID_reg_MEM_R_EN),.MEM_W_EN(ID_MEM_W_EN), .WB_EN(ID_reg_WB_EN),.src1(ID_REG_SRC1), .src2(ID_REG_SRC2));
 
 Bin_to_7Seg idseg(ID_reg_PC_out[3:0], HEX1);
 //*********************EXECUTION***********************
 wire EXE_reg_WB_EN, EXE_reg_MEM_R_EN, EXE_reg_MEM_W_EN;
-wire [31:0] EXE_reg_PC_out, EXE_STAGE_ALU_RES, EXE_PC_out, EXE_reg_ALU_result, EXE_reg_ST_val;
+wire [31:0] EXE_reg_PC_out, EXE_STAGE_ALU_RES, EXE_PC_out, EXE_reg_ALU_result, EXE_reg_ST_val, EXE_st_Src2_val;
 wire [4:0] EXE_reg_Dest;
-EXE_Stage es(.clk(CLOCK_50), .EXE_CMD(exe_cmd), .val1(ID_val1_out), .val2(ID_Val2_out), .val_src2(ID_REG2_out), .PC(ID_reg_PC_out),
-				.Br_type(ID_BR_out), .ALU_result(EXE_STAGE_ALU_RES), .Br_Addr(EXE_STAGE_BR_ADDR), .Br_taken(BR_TAKEN));
 
-EXE_Stage_reg esr(.clk(CLOCK_50), .rst(SW[0]), .WB_en_in(ID_reg_WB_EN), .MEM_R_EN_in(ID_reg_MEM_R_EN), .MEM_W_EN_in(ID_MEM_W_EN),
- 					.ALU_result_in(EXE_STAGE_ALU_RES), .ST_val_in(ID_REG2_out), .Dest_in(ID_DST_OUT),
- 					.WB_en(EXE_reg_WB_EN), .MEM_R_EN(EXE_reg_MEM_R_EN), .MEM_W_EN(EXE_reg_MEM_W_EN), .ALU_result(EXE_reg_ALU_result),
+
+
+//forwarding unit
+wire [1:0] EXE_Val1_sel,EXE_Val2_sel,EXE_Src2_Val_sel;
+
+
+EXE_Stage es(.clk(clk), .EXE_CMD(exe_cmd), .val1(ID_val1_out), .val2(ID_Val2_out), .val_src2(ID_REG2_out), .PC(ID_reg_PC_out),
+				.Br_type(ID_BR_out),.val1_sel(EXE_Val1_sel),.val2_sel(EXE_Val2_sel), .src2_val_sel(EXE_Src2_Val_sel),
+				.EXE_Reg_ALU_result(EXE_reg_ALU_result), .src2_val(EXE_st_Src2_val), .WB_Write_val(WB_stage_W_value),
+				.ALU_result(EXE_STAGE_ALU_RES), .Br_Addr(EXE_STAGE_BR_ADDR), .Br_taken(BR_TAKEN));
+
+
+EXE_Stage_reg esr(.clk(clk), .rst(rst), .freeze(~MEM_stage_ready), .WB_en_in(ID_reg_WB_EN), .MEM_R_EN_in(ID_reg_MEM_R_EN), .MEM_W_EN_in(ID_MEM_W_EN),
+ 					.ALU_result_in(EXE_STAGE_ALU_RES), .ST_val_in(EXE_st_Src2_val), .Dest_in(ID_DST_OUT),
+ 					.WB_en(EXE_reg_WB_EN), .MEM_R_EN(EXE_reg_MEM_R_EN),.MEM_W_EN(EXE_reg_MEM_W_EN), .ALU_result(EXE_reg_ALU_result),
  					.ST_val(EXE_reg_ST_val), .Dest(EXE_reg_Dest));
 Bin_to_7Seg eseg(EXE_reg_PC_out[3:0], HEX2);
 
@@ -359,10 +373,12 @@ Bin_to_7Seg eseg(EXE_reg_PC_out[3:0], HEX2);
 wire [31:0] MEM_reg_PC_out, Mem_stage_read_value, MEM_Reg_ALU_res, MEM_Reg_Mem_read_val, MEM_PC_out;
 wire MEM_Reg_Mem_R_en;
 
-MEM_Stage ms(.clk(CLOCK_50), .MEM_R_EN_in(EXE_reg_MEM_R_EN), .MEM_W_EN_in(EXE_reg_MEM_W_EN), .ALU_result_in(EXE_reg_ALU_result),
-				.ST_val(EXE_reg_ST_val), .Mem_read_value(Mem_stage_read_value));
+MEM_Stage ms(.clk(clk), .rst(rst), .MEM_R_EN_in(EXE_reg_MEM_R_EN), .MEM_W_EN_in(EXE_reg_MEM_W_EN), .ALU_result_in(EXE_reg_ALU_result),
+				.ST_val(EXE_reg_ST_val), .Mem_read_value(Mem_stage_read_value), .ready(MEM_stage_ready), .SRAM_DQ(SRAM_DQ)
+				, .SRAM_ADDR(SRAM_ADDR), .SRAM_UB_N(SRAM_UB_N), .SRAM_LB_N(SRAM_LB_N), .SRAM_WE_N(SRAM_WE_N), .SRAM_CE_N(SRAM_CE_N)
+				, .SRAM_OE_N(SRAM_OE_N));
 
-MEM_Stage_reg msr(.clk(CLOCK_50), .rst(SW[0]), .WB_en_in(EXE_reg_WB_EN), .MEM_R_EN_in(EXE_reg_MEM_R_EN), .ALU_result_in(EXE_reg_ALU_result), 
+MEM_Stage_reg msr(.clk(clk), .rst(rst), .freeze(~MEM_stage_ready), .WB_en_in(EXE_reg_WB_EN), .MEM_R_EN_in(EXE_reg_MEM_R_EN), .ALU_result_in(EXE_reg_ALU_result), 
 				.MEM_read_value_in(Mem_stage_read_value), .Dest_in(EXE_reg_Dest), .WB_en(MEM_WB_EN), .MEM_R_en(MEM_Reg_Mem_R_en),
 				.ALU_result(MEM_Reg_ALU_res), .MEM_read_value(MEM_Reg_Mem_read_val), .Dest(MEM_Reg_dest));
 
@@ -371,15 +387,26 @@ Bin_to_7Seg mseg(MEM_reg_PC_out[3:0], HEX3);
 wire [31:0] WB_PC_out;
 wire [31:0] WB_reg_PC_out;
 
-WB_Stage ws(.clk(CLOCK_50), .MEM_R_EN(MEM_Reg_Mem_R_en), .ALU_result(MEM_Reg_ALU_res), .Mem_read_value(MEM_Reg_Mem_read_val), 
+WB_Stage ws(.clk(clk), .MEM_R_EN(MEM_Reg_Mem_R_en), .ALU_result(MEM_Reg_ALU_res), .Mem_read_value(MEM_Reg_Mem_read_val), 
 			.Write_value(WB_stage_W_value));
 
 Bin_to_7Seg wbseg(WB_reg_PC_out[3:0], HEX4);
 //******************HAZARD DETECTION**********************
 Hazard_Detection_Unit hdu(.src1(IF_reg_Inst_out[25:21]), .src2(IF_reg_Inst_out[20:16]), 
-						  .Exe_Dest(ID_DST_OUT), .Exe_WB_EN(ID_reg_WB_EN), 
+						  .Exe_Dest(ID_DST_OUT), .Exe_WB_EN(ID_reg_WB_EN), .Exe_Mem_R_En(ID_reg_MEM_R_EN), 
 						  .Mem_Dest(EXE_reg_Dest), .Mem_WB_EN(EXE_reg_WB_EN), 
-						  .is_single_src(ID_is_single_src), .is_BNE(ID_is_BNE), .hazard_Detected(HD_Hazard_Detection));
+						  .is_single_src(ID_is_single_src), .is_BNE(ID_is_BNE), .mode(SW[2]), .hazard_Detected(HD_Hazard_Detection));
+
+//******************FORWARDING UNIT**********************
+wire enable_forward_unit;
+assign enable_forward_unit = SW[2];
+//355
+ForwardingUnit fu(.src1(ID_REG_SRC1),.src2(ID_REG_SRC2),.id_reg_dest(ID_DST_OUT),
+				.mem_reg_dest(MEM_Reg_dest),.is_bne(ID_is_BNE), .is_store(ID_MEM_W_EN), .exe_reg_dest(EXE_reg_Dest),
+				.exe_reg_wb(EXE_reg_WB_EN),.mem_reg_wb(MEM_WB_EN),.enable_forward_unit(enable_forward_unit),
+				.val1_sel(EXE_Val1_sel),.val2_sel(EXE_Val2_sel),.src2_val_sel(EXE_Src2_Val_sel));
+
+assign general_freeze = HD_Hazard_Detection | ~MEM_stage_ready;
 
 endmodule
 

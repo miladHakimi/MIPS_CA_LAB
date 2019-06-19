@@ -1,7 +1,7 @@
 module MEM_Stage_reg(
 	input clk,
 	input rst,
-	
+	input freeze,
 	input WB_en_in,
 	input MEM_R_EN_in,
 
@@ -20,8 +20,7 @@ module MEM_Stage_reg(
 	always @(posedge clk, posedge rst) begin
 		if(rst)
 			{ALU_result, MEM_read_value, Dest} <= 69'b0;
-		else 
-			{WB_en, MEM_R_en, ALU_result, MEM_read_value, Dest} <= 
-				{WB_en_in, MEM_R_EN_in, ALU_result_in, MEM_read_value_in, Dest_in};
+		else if (freeze==0)
+			{WB_en, MEM_R_en, ALU_result, MEM_read_value, Dest} <= {WB_en_in, MEM_R_EN_in, ALU_result_in, MEM_read_value_in, Dest_in};
 	end
 endmodule

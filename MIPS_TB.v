@@ -259,6 +259,7 @@ MIPS mips(
 	end
 	initial begin
 		SW[0] = 1;
+		SW[2] = 1;
 		#40
 		SW[0] = 0;
 	end

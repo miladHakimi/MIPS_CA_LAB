@@ -16,6 +16,9 @@ module ID_Stage(
 		output MEM_R_EN,
 		output MEM_W_EN,
 		output WB_EN,
+		//src output for forwarding unit
+		output [4:0] src1,
+		output [4:0] src2,
 		output is_single_src,
 		output is_BNE
 	);
@@ -45,6 +48,8 @@ module ID_Stage(
 	//*************End of MUX
 	assign Dest = is_immediate ? Instruction[20:16] : Instruction[15:11];
 	assign Reg2 = reg2;
-
+	//src1 and src2 for forwarding unit
+	assign src1 = Instruction[25:21];
+	assign src2 = Instruction[20:16];
 	
 endmodule
